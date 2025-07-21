@@ -142,23 +142,42 @@ body {
 }
 
 
-/* Responsive */
 @media (max-width: 768px) {
   body {
     flex-direction: column;
     padding: 1rem;
     gap: 1.5rem;
+    height: auto;            /* Let height grow with content */
+    overflow: visible;       /* Avoid hidden cutting */
   }
 
   .container {
-    position: static;
-    transform: none;
+    position: static !important;  /* override fixed */
+    transform: none !important;
     max-width: 90vw;
+    width: 100%;
     margin: 0 auto;
+    padding: 24px 20px;      /* reduce padding on smaller screens */
+    border-radius: 16px;     /* slightly smaller radius */
+    box-shadow:
+      0 0 10px #00fff5,
+      inset 0 0 8px #00b8a9;
+  }
+
+  #manual h2 {
+    font-size: 18px;         /* scale down title */
+  }
+
+  #manual li {
+    font-size: 12px;         /* smaller font */
+    padding-left: 18px;
   }
 
   #gameCanvas {
     width: 90vw;
-    height: calc(90vw * 1.666); /* keep 420/700 aspect ratio */
+    max-width: 420px;        /* keep original max */
+    height: auto;
+    aspect-ratio: 3 / 5;     /* maintain ratio cleanly */
+    border-radius: 16px;     /* smaller radius */
   }
 }
