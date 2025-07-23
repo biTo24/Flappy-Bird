@@ -23,22 +23,32 @@ body {
   padding: 2rem;
 }
 
+/* Modal wrapper */
+.modal {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
 /* Manual container - fixed left, vertically centered */
 .container {
-  position: fixed;
-  left: 180px; /* moved more left since it's bigger */
-  top: 42.5%;
-  transform: translateY(-50%);
-  max-width: 360px; /* bigger width */
+  position: relative;
+  max-width: 360px;
   background: rgba(10, 25, 40, 0.85);
   border: 2px solid #00ffe7;
   border-radius: 20px;
-  padding: 36px 40px; /* more padding */
+  padding: 36px 40px;
   box-shadow:
     0 0 12px #00ffe7,
     inset 0 0 10px #00b8a9;
   transition: box-shadow 0.3s ease;
   z-index: 10;
+  animation: popupFade 0.3s ease-in-out;
+  margin-top: -250px;
 }
 
 .container:hover {
@@ -93,6 +103,22 @@ body {
   font-weight: 700;
 }
 
+/* Close Button */
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 24px;
+  color: #00fff5;
+  cursor: pointer;
+  font-weight: bold;
+  transition: color 0.2s ease;
+}
+
+.close-btn:hover {
+  color: #ff0066;
+}
+
 /* Game Canvas */
 #gameCanvas {
   background: linear-gradient(180deg, #0a3d62 0%, #1e6091 60%, #74b9ff 100%);
@@ -134,50 +160,48 @@ body {
   font-weight: 700;
   transition: color 0.3s ease;
 }
-
 #footer a:hover {
   color: #00ffe7;
   text-decoration: underline;
   cursor: pointer;
 }
 
+/* Modal animation */
+@keyframes popupFade {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 
+/* Responsive */
 @media (max-width: 768px) {
   body {
     flex-direction: column;
     padding: 1rem;
     gap: 1.5rem;
-    height: auto;            /* Let height grow with content */
-    overflow: visible;       /* Avoid hidden cutting */
-  }
-
-  .container {
-    position: static !important;  /* override fixed */
-    transform: none !important;
-    max-width: 90vw;
-    width: 100%;
-    margin: 0 auto;
-    padding: 24px 20px;      /* reduce padding on smaller screens */
-    border-radius: 16px;     /* slightly smaller radius */
-    box-shadow:
-      0 0 10px #00fff5,
-      inset 0 0 8px #00b8a9;
+    height: auto;
+    overflow: visible;
   }
 
   #manual h2 {
-    font-size: 18px;         /* scale down title */
+    font-size: 18px;
   }
 
   #manual li {
-    font-size: 12px;         /* smaller font */
+    font-size: 12px;
     padding-left: 18px;
   }
 
   #gameCanvas {
     width: 90vw;
-    max-width: 420px;        /* keep original max */
+    max-width: 420px;
     height: auto;
-    aspect-ratio: 3 / 5;     /* maintain ratio cleanly */
-    border-radius: 16px;     /* smaller radius */
+    aspect-ratio: 3 / 5;
+    border-radius: 16px;
   }
 }

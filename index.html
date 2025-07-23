@@ -9,28 +9,42 @@
 </head>
 <body>
   
-<div class="container">
-  <div id="manual">
-    <h2>Flappy Bird Manual</h2>
-    
-    <ul>
-      <li><strong>SPACE</strong> — Start / Jump</li>
-      <li><strong>P</strong> — Pause / Resume</li>
-      <li>Avoid pipes 🛑</li>
-      <li>Score increases with each pipe passed ✅</li>
-      <li>Difficulty increases as score grows 🔥</li>
-      <li><em>Good luck!</em> 🍀</li>
-    </ul>
+<div class="modal" id="manualModal">
+  <div class="container modal-content">
+    <span class="close-btn" id="closeManual">&times;</span>
+    <div id="manual">
+      <h2>Flappy Bird Manual</h2>
+      <ul>
+        <li><strong>SPACE</strong> — Start / Jump</li>
+        <li><strong>P</strong> — Pause / Resume</li>
+        <li>Avoid pipes 🛑</li>
+        <li>Score increases with each pipe passed ✅</li>
+        <li>Difficulty increases as score grows 🔥</li>
+        <li><em>Good luck!</em> 🍀</li>
+      </ul>
+    </div>
   </div>
 </div>
 
+<canvas id="gameCanvas" width="720" height="960"></canvas>
 
-    <canvas id="gameCanvas" width="720" height="960"></canvas>
+<footer id="footer">
+  <p>© 2025 Flappy Bird Clone by <a href="https://bito24.github.io/Portofolio/" target="_blank" rel="noopener noreferrer">Arbi</a></p>
+</footer>
+<script>
+  const closeManual = document.getElementById('closeManual');
+  const manualModal = document.getElementById('manualModal');
 
-    <footer id="footer">
-        <p>© 2025 Flappy Bird Clone by <a href="https://bito24.github.io/Portofolio/" target="_blank" rel="noopener noreferrer">Arbi</a></p>
-    </footer>
+  closeManual.addEventListener('click', () => {
+    manualModal.style.display = 'none';
+    showHomescreen(); // Show the "Press SPACE to Start" screen
+  });
 
-
-  </div>
+  function showHomescreen() {
+    gameStarted = false;
+    gameOver = false;
+    paused = false;
+    draw(); // Redraw the canvas with the homescreen UI
+  }
+</script>
 </body>
