@@ -1,4 +1,4 @@
-// ===== FLAPPY BIRD CLONE WITH STATS, POLISH, HOMESCREEN, CLOUDS & MOVING SUN =====
+// ===== FLAPPY BIRD CLONE WITH STATS, POLISH, HOMESCREEN, CLOUDS, MOVING SUN & SCORE-BASED DAY/NIGHT CYCLE =====
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -16,7 +16,7 @@ const birdWidth = 70;
 const birdHeight = 70;
 const gravity = 0.5;
 const jump = -8;
-const pipeGap = 150;
+const pipeGap = 250;
 const pipeWidth = 52;
 const groundHeight = 80;
 
@@ -46,7 +46,26 @@ const clouds = Array.from({ length: 10 }, () => ({
     type: Math.floor(Math.random() * 10)
 }));
 
-// === Helpers ===
+// === Sky Phases Based on Score ===
+const skyPhases = [
+    { r: 135, g: 206, b: 235 }, // Day
+    { r: 252, g: 94,  b: 100 }, // Sunset
+    { r: 25,  g: 25,  b: 112 }  // Night
+];
+
+function getSkyColorByScore(score) {
+    let phase;
+    if (score < 15) {
+        phase = 0; // Day
+    } else if (score < 25) {
+        phase = 1; // Sunset
+    } else {
+        phase = 2; // Night
+    }
+    const color = skyPhases[phase];
+    return `rgb(${color.r}, ${color.g}, ${color.b})`;
+}
+
 function drawText(text, x, y, size = 24, color = '#fff', align = 'center', bold = false) {
     ctx.fillStyle = color;
     ctx.font = `${bold ? 'bold ' : ''}${size}px Segoe UI`;
@@ -75,7 +94,6 @@ function drawSun(x, y, radius) {
     }
 }
 
-// === Game Loop ===
 function update() {
     if (gameOver || paused || !gameStarted) return;
 
@@ -114,7 +132,6 @@ function update() {
         handleGameOver();
     }
 
-    // Update clouds
     clouds.forEach(cloud => {
         cloud.x -= cloud.speed;
         if (cloud.x < -100) {
@@ -125,7 +142,6 @@ function update() {
         }
     });
 
-    // Update sun angle
     sunAngle += 0.002;
     if (sunAngle > Math.PI * 2) sunAngle -= Math.PI * 2;
 
@@ -135,24 +151,19 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Sky background
-    const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    skyGradient.addColorStop(0, '#70c5ce');
-    skyGradient.addColorStop(1, '#a0d8ef');
-    ctx.fillStyle = skyGradient;
+    ctx.fillStyle = getSkyColorByScore(score);
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw moving sun
-    const sunX = canvas.width / 2 + Math.cos(sunAngle) * 300;
-    const sunY = 150 + Math.sin(sunAngle) * 80;
-    drawSun(sunX, sunY, sunRadius);
+    if (score < 25) {
+        const sunX = canvas.width / 2 + Math.cos(sunAngle) * 300;
+        const sunY = 150 + Math.sin(sunAngle) * 80;
+        drawSun(sunX, sunY, sunRadius);
+    }
 
-    // Clouds
     clouds.forEach(cloud => {
         drawCloud(cloud.x, cloud.y, cloud.type);
     });
 
-    // Pipes
     pipes.forEach(pipe => {
         ctx.fillStyle = '#228B22';
         ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
@@ -163,11 +174,9 @@ function draw() {
         ctx.fillRect(pipe.x - 5, pipe.top + pipe.gap, pipeWidth + 10, 20);
     });
 
-    // Ground
     ctx.fillStyle = '#ded895';
     ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
 
-    // Bird
     const maxRotation = Math.PI / 4;
     const rotation = Math.max(-maxRotation, Math.min(maxRotation, birdV / 10));
     ctx.save();
@@ -176,12 +185,10 @@ function draw() {
     ctx.drawImage(birdImg, -birdWidth / 2, -birdHeight / 2, birdWidth, birdHeight);
     ctx.restore();
 
-    // Score
     if (gameStarted && !gameOver) {
         drawText(score, canvas.width / 2, 80, 70, 'white', 'center', true);
     }
 
-    // UI: Homescreen logo & prompt
     if (!gameStarted && !gameOver) {
         const logoWidth = 400;
         const logoHeight = 200;
@@ -201,7 +208,6 @@ function draw() {
         drawText('Press SPACE to Restart', canvas.width / 2, canvas.height / 2 + 100, 32, 'red', 'center', true);
     }
 }
-
 function loop() {
     if (!gameStarted || paused || gameOver) return;
     update();
@@ -275,50 +281,78 @@ function resetGame() {
     sunAngle = 0;
 }
 
-// === Cloud Draw Function ===
 function drawCloud(x, y, type) {
-    ctx.fillStyle = '#ffffff';
+    const gradient = ctx.createRadialGradient(x, y, 10, x, y, 50);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.05)';
+    ctx.shadowBlur = 12;
+
     ctx.beginPath();
     switch (type) {
-        case 0: ctx.arc(x, y, 20, 0, Math.PI * 2);
-                ctx.arc(x + 25, y + 10, 20, 0, Math.PI * 2);
-                ctx.arc(x - 25, y + 10, 20, 0, Math.PI * 2); break;
-        case 1: ctx.arc(x - 30, y + 10, 15, 0, Math.PI * 2);
-                ctx.arc(x, y, 25, 0, Math.PI * 2);
-                ctx.arc(x + 30, y + 10, 15, 0, Math.PI * 2); break;
-        case 2: ctx.arc(x, y, 20, 0, Math.PI * 2);
-                ctx.arc(x, y + 20, 20, 0, Math.PI * 2);
-                ctx.arc(x - 20, y + 10, 15, 0, Math.PI * 2);
-                ctx.arc(x + 20, y + 10, 15, 0, Math.PI * 2); break;
-        case 3: ctx.arc(x - 25, y + 10, 18, 0, Math.PI * 2);
-                ctx.arc(x, y, 25, 0, Math.PI * 2);
-                ctx.arc(x + 25, y + 10, 18, 0, Math.PI * 2);
-                ctx.arc(x, y + 15, 20, 0, Math.PI * 2); break;
-        case 4: ctx.arc(x, y, 15, 0, Math.PI * 2);
-                ctx.arc(x + 18, y + 5, 12, 0, Math.PI * 2);
-                ctx.arc(x - 18, y + 5, 12, 0, Math.PI * 2); break;
-        case 5: ctx.arc(x - 20, y + 5, 18, 0, Math.PI * 2);
-                ctx.arc(x, y, 22, 0, Math.PI * 2);
-                ctx.arc(x + 20, y + 5, 18, 0, Math.PI * 2);
-                ctx.arc(x + 35, y + 15, 14, 0, Math.PI * 2); break;
-        case 6: ctx.arc(x, y, 25, 0, Math.PI * 2);
-                ctx.arc(x + 15, y + 10, 20, 0, Math.PI * 2);
-                ctx.arc(x - 15, y + 10, 20, 0, Math.PI * 2);
-                ctx.arc(x + 5, y + 20, 15, 0, Math.PI * 2);
-                ctx.arc(x - 5, y + 20, 15, 0, Math.PI * 2); break;
-        case 7: ctx.arc(x, y, 18, 0, Math.PI * 2);
-                ctx.arc(x + 25, y, 18, 0, Math.PI * 2);
-                ctx.arc(x + 12, y + 15, 25, 0, Math.PI * 2);
-                ctx.arc(x - 15, y + 10, 18, 0, Math.PI * 2); break;
-        case 8: ctx.arc(x - 30, y + 15, 15, 0, Math.PI * 2);
-                ctx.arc(x - 10, y + 5, 20, 0, Math.PI * 2);
-                ctx.arc(x + 15, y + 10, 25, 0, Math.PI * 2);
-                ctx.arc(x + 35, y + 15, 15, 0, Math.PI * 2); break;
-        case 9: ctx.arc(x, y, 20, 0, Math.PI * 2);
-                ctx.arc(x - 20, y + 10, 18, 0, Math.PI * 2);
-                ctx.arc(x + 20, y + 10, 18, 0, Math.PI * 2);
-                ctx.arc(x - 35, y + 20, 12, 0, Math.PI * 2);
-                ctx.arc(x + 35, y + 20, 12, 0, Math.PI * 2); break;
+        case 0:
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.arc(x + 25, y + 10, 20, 0, Math.PI * 2);
+            ctx.arc(x - 25, y + 10, 20, 0, Math.PI * 2);
+            break;
+        case 1:
+            ctx.arc(x - 30, y + 10, 15, 0, Math.PI * 2);
+            ctx.arc(x, y, 25, 0, Math.PI * 2);
+            ctx.arc(x + 30, y + 10, 15, 0, Math.PI * 2);
+            break;
+        case 2:
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.arc(x, y + 20, 20, 0, Math.PI * 2);
+            ctx.arc(x - 20, y + 10, 15, 0, Math.PI * 2);
+            ctx.arc(x + 20, y + 10, 15, 0, Math.PI * 2);
+            break;
+        case 3:
+            ctx.arc(x - 25, y + 10, 18, 0, Math.PI * 2);
+            ctx.arc(x, y, 25, 0, Math.PI * 2);
+            ctx.arc(x + 25, y + 10, 18, 0, Math.PI * 2);
+            ctx.arc(x, y + 15, 20, 0, Math.PI * 2);
+            break;
+        case 4:
+            ctx.arc(x, y, 15, 0, Math.PI * 2);
+            ctx.arc(x + 18, y + 5, 12, 0, Math.PI * 2);
+            ctx.arc(x - 18, y + 5, 12, 0, Math.PI * 2);
+            break;
+        case 5:
+            ctx.arc(x - 20, y + 5, 18, 0, Math.PI * 2);
+            ctx.arc(x, y, 22, 0, Math.PI * 2);
+            ctx.arc(x + 20, y + 5, 18, 0, Math.PI * 2);
+            ctx.arc(x + 35, y + 15, 14, 0, Math.PI * 2);
+            break;
+        case 6:
+            ctx.arc(x, y, 25, 0, Math.PI * 2);
+            ctx.arc(x + 15, y + 10, 20, 0, Math.PI * 2);
+            ctx.arc(x - 15, y + 10, 20, 0, Math.PI * 2);
+            ctx.arc(x + 5, y + 20, 15, 0, Math.PI * 2);
+            ctx.arc(x - 5, y + 20, 15, 0, Math.PI * 2);
+            break;
+        case 7:
+            ctx.arc(x, y, 18, 0, Math.PI * 2);
+            ctx.arc(x + 25, y, 18, 0, Math.PI * 2);
+            ctx.arc(x + 12, y + 15, 25, 0, Math.PI * 2);
+            ctx.arc(x - 15, y + 10, 18, 0, Math.PI * 2);
+            break;
+        case 8:
+            ctx.arc(x - 30, y + 15, 15, 0, Math.PI * 2);
+            ctx.arc(x - 10, y + 5, 20, 0, Math.PI * 2);
+            ctx.arc(x + 15, y + 10, 25, 0, Math.PI * 2);
+            ctx.arc(x + 35, y + 15, 15, 0, Math.PI * 2);
+            break;
+        case 9:
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.arc(x - 20, y + 10, 18, 0, Math.PI * 2);
+            ctx.arc(x + 20, y + 10, 18, 0, Math.PI * 2);
+            ctx.arc(x - 35, y + 20, 12, 0, Math.PI * 2);
+            ctx.arc(x + 35, y + 20, 12, 0, Math.PI * 2);
+            break;
     }
     ctx.fill();
+
+    ctx.shadowBlur = 0; // reset after drawing
 }
