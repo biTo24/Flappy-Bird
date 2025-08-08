@@ -1,4 +1,4 @@
-// ===== FLAPPY BIRD CLONE WITH STATS, POLISH, HOMESCREEN, CLOUDS, MOVING SUN & SCORE-BASED DAY/NIGHT CYCLE =====
+// ===== FLAPPY BIRD CLONE WITH STATS, POLISH, HOMESCREEN, CLOUDS, MOVING SUN & SMOOTH DAY/NIGHT CYCLE =====
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -46,24 +46,25 @@ const clouds = Array.from({ length: 10 }, () => ({
     type: Math.floor(Math.random() * 10)
 }));
 
-// === Sky Phases Based on Score ===
+// === Sky Phases ===
 const skyPhases = [
     { r: 135, g: 206, b: 235 }, // Day
-    { r: 252, g: 94,  b: 100 }, // Sunset
     { r: 25,  g: 25,  b: 112 }  // Night
 ];
 
+// === Smooth Day → Night transition ===
 function getSkyColorByScore(score) {
-    let phase;
-    if (score < 15) {
-        phase = 0; // Day
-    } else if (score < 25) {
-        phase = 1; // Sunset
-    } else {
-        phase = 2; // Night
-    }
-    const color = skyPhases[phase];
-    return `rgb(${color.r}, ${color.g}, ${color.b})`;
+    const day = skyPhases[0];
+    const night = skyPhases[1];
+
+    // Clamp t between 0–1 based on score
+    let t = Math.min(Math.max(score / 15, 0), 1);
+
+    const r = Math.round(day.r + (night.r - day.r) * t);
+    const g = Math.round(day.g + (night.g - day.g) * t);
+    const b = Math.round(day.b + (night.b - day.b) * t);
+
+    return `rgb(${r}, ${g}, ${b})`;
 }
 
 function drawText(text, x, y, size = 24, color = '#fff', align = 'center', bold = false) {
@@ -154,7 +155,7 @@ function draw() {
     ctx.fillStyle = getSkyColorByScore(score);
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (score < 25) {
+    if (score < 15) {
         const sunX = canvas.width / 2 + Math.cos(sunAngle) * 300;
         const sunY = 150 + Math.sin(sunAngle) * 80;
         drawSun(sunX, sunY, sunRadius);
@@ -208,6 +209,7 @@ function draw() {
         drawText('Press SPACE to Restart', canvas.width / 2, canvas.height / 2 + 100, 32, 'red', 'center', true);
     }
 }
+
 function loop() {
     if (!gameStarted || paused || gameOver) return;
     update();
@@ -354,5 +356,5 @@ function drawCloud(x, y, type) {
     }
     ctx.fill();
 
-    ctx.shadowBlur = 0; // reset after drawing
+    ctx.shadowBlur = 0;
 }
