@@ -1,4 +1,4 @@
-// ===== FLAPPY BIRD CLONE WITH STATS, POLISH, HOMESCREEN, CLOUDS, MOVING SUN & SMOOTH DAY/NIGHT CYCLE =====
+// ===== FLAPPY BIRD CLONE WITH BIGGER PARALLAX HILLS, SIMPLE SKY =====
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -32,11 +32,7 @@ let currentStreak = 0;
 let gameStarted = false;
 let gameOver = false;
 let paused = false;
-let gameLoopActive = false;
-
-// === Sun Movement ===
-let sunAngle = 0;
-const sunRadius = 40;
+let gameDead = false; // tracks death animation phase
 
 // === Cloud Variables ===
 const clouds = Array.from({ length: 10 }, () => ({
@@ -46,25 +42,24 @@ const clouds = Array.from({ length: 10 }, () => ({
     type: Math.floor(Math.random() * 10)
 }));
 
-// === Sky Phases ===
-const skyPhases = [
-    { r: 135, g: 206, b: 235 }, // Day
-    { r: 25,  g: 25,  b: 112 }  // Night
+// === Hill Colors ===
+const hillColors = [
+    "#b7e28a", // closest
+    "#7fc97f", // mid
+    "#4e7c4e"  // farthest
 ];
 
-// === Smooth Day → Night transition ===
-function getSkyColorByScore(score) {
-    const day = skyPhases[0];
-    const night = skyPhases[1];
+// === Hill Parallax & Smoothness Settings ===
+const hills = [
+    { amplitude: 90, frequency: 0.008, speed: 0.5, offset: 0, baseY: canvas.height - groundHeight - 90 }, // closest
+    { amplitude: 70, frequency: 0.006, speed: 0.3, offset: 100, baseY: canvas.height - groundHeight - 160 }, // mid
+    { amplitude: 50, frequency: 0.004, speed: 0.15, offset: 200, baseY: canvas.height - groundHeight - 220 } // farthest
+];
 
-    // Clamp t between 0–1 based on score
-    let t = Math.min(Math.max(score / 15, 0), 1);
-
-    const r = Math.round(day.r + (night.r - day.r) * t);
-    const g = Math.round(day.g + (night.g - day.g) * t);
-    const b = Math.round(day.b + (night.b - day.b) * t);
-
-    return `rgb(${r}, ${g}, ${b})`;
+// === Simple Sky ===
+function drawSky() {
+    ctx.fillStyle = "#87ceeb"; // simple blue sky
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawText(text, x, y, size = 24, color = '#fff', align = 'center', bold = false) {
@@ -74,96 +69,118 @@ function drawText(text, x, y, size = 24, color = '#fff', align = 'center', bold 
     ctx.fillText(text, x, y);
 }
 
-function drawSun(x, y, radius) {
-    ctx.fillStyle = '#FFD93B';
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = '#FFC300';
-    ctx.lineWidth = 3;
-    for (let i = 0; i < 12; i++) {
-        const angle = (Math.PI * 2 / 12) * i;
-        const startX = x + Math.cos(angle) * radius;
-        const startY = y + Math.sin(angle) * radius;
-        const endX = x + Math.cos(angle) * (radius + 20);
-        const endY = y + Math.sin(angle) * (radius + 20);
+// === Parallax Hills ===
+function drawHills() {
+    hills.forEach((hill, idx) => {
+        ctx.save();
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.stroke();
-    }
+        ctx.moveTo(0, canvas.height);
+        ctx.lineTo(0, hill.baseY);
+
+        for (let x = 0; x <= canvas.width; x += 2) {
+            const wave = Math.sin((x + frame * hill.speed + hill.offset) * hill.frequency) * hill.amplitude;
+            ctx.lineTo(x, hill.baseY + wave);
+        }
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.closePath();
+        ctx.fillStyle = hillColors[idx];
+        ctx.globalAlpha = 0.7 - idx * 0.2;
+        ctx.fill();
+        ctx.restore();
+    });
 }
 
 function update() {
-    if (gameOver || paused || !gameStarted) return;
-
-    birdV += gravity;
-    birdY += birdV;
-
     const pipeSpeed = 3 + score * 0.1;
 
-    if (frame % 90 === 0) {
-        let top = Math.random() * 250 + 50;
-        pipes.push({ x: canvas.width, top: top, gap: pipeGap, passed: false });
-    }
+    if (!gameOver) {
+        // Normal gameplay
+        birdV += gravity;
+        birdY += birdV;
 
-    pipes.forEach(pipe => {
-        pipe.x -= pipeSpeed;
+        if (frame % 90 === 0) {
+            let top = Math.random() * 250 + 50;
+            pipes.push({ x: canvas.width, top: top, gap: pipeGap, passed: false });
+        }
 
-        const hitPipe = birdX + birdWidth > pipe.x &&
-                        birdX < pipe.x + pipeWidth &&
-                        (birdY < pipe.top || birdY + birdHeight > pipe.top + pipe.gap);
+        pipes.forEach(pipe => {
+            pipe.x -= pipeSpeed;
 
-        if (hitPipe) {
+            const hitPipe = birdX + birdWidth > pipe.x &&
+                            birdX < pipe.x + pipeWidth &&
+                            (birdY < pipe.top || birdY + birdHeight > pipe.top + pipe.gap);
+
+            if (hitPipe) {
+                gameOver = true;
+                gameDead = false;  // start death animation
+                if (typeof gameOverSound !== 'undefined') {
+                    gameOverSound.currentTime = 0;
+                    gameOverSound.play();
+                }
+                handleGameOver();
+            }
+
+            if (!pipe.passed && pipe.x + pipeWidth < birdX) {
+                pipe.passed = true;
+                score++;
+                if (typeof jumpSound !== 'undefined') {
+                    jumpSound.currentTime = 0;
+                    jumpSound.play();
+                }
+            }
+        });
+
+        pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
+
+        if (birdY + birdHeight > canvas.height - groundHeight || birdY < 0) {
             gameOver = true;
+            gameDead = false;  // start death animation
+            if (typeof gameOverSound !== 'undefined') {
+                gameOverSound.currentTime = 0;
+                gameOverSound.play();
+            }
             handleGameOver();
         }
 
-        if (!pipe.passed && pipe.x + pipeWidth < birdX) {
-            pipe.passed = true;
-            score++;
+        clouds.forEach(cloud => {
+            cloud.x -= cloud.speed;
+            if (cloud.x < -100) {
+                cloud.x = canvas.width + Math.random() * 200;
+                cloud.y = Math.random() * 120 + 20;
+                cloud.speed = Math.random() * 0.5 + 0.1;
+                cloud.type = Math.floor(Math.random() * 10);
+            }
+        });
+
+        frame++;
+
+    } else if (!gameDead) {
+        // Death animation phase - bird falls and pipes keep moving
+        birdV += gravity;
+        birdY += birdV;
+
+        pipes.forEach(pipe => {
+            pipe.x -= pipeSpeed;
+        });
+
+        if (birdY + birdHeight >= canvas.height - groundHeight) {
+            birdY = canvas.height - groundHeight - birdHeight;
+            birdV = 0; // stop velocity on ground hit
+            gameDead = true; // freeze now
         }
-    });
-
-    pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
-
-    if (birdY + birdHeight > canvas.height - groundHeight || birdY < 0) {
-        gameOver = true;
-        handleGameOver();
     }
-
-    clouds.forEach(cloud => {
-        cloud.x -= cloud.speed;
-        if (cloud.x < -100) {
-            cloud.x = canvas.width + Math.random() * 200;
-            cloud.y = Math.random() * 120 + 20;
-            cloud.speed = Math.random() * 0.5 + 0.1;
-            cloud.type = Math.floor(Math.random() * 10);
-        }
-    });
-
-    sunAngle += 0.002;
-    if (sunAngle > Math.PI * 2) sunAngle -= Math.PI * 2;
-
-    frame++;
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = getSkyColorByScore(score);
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    if (score < 15) {
-        const sunX = canvas.width / 2 + Math.cos(sunAngle) * 300;
-        const sunY = 150 + Math.sin(sunAngle) * 80;
-        drawSun(sunX, sunY, sunRadius);
-    }
+    drawSky();
 
     clouds.forEach(cloud => {
         drawCloud(cloud.x, cloud.y, cloud.type);
     });
+
+    drawHills();
 
     pipes.forEach(pipe => {
         ctx.fillStyle = '#228B22';
@@ -201,7 +218,8 @@ function draw() {
     }
 
     if (paused) {
-        drawText('Paused', canvas.width / 2, canvas.height / 2, 48, 'yellow', 'center', true);
+        drawText('Game Paused', canvas.width / 2, canvas.height / 2, 48, 'red', 'center', true);
+        drawText('Press P/Space to continue', canvas.width / 2, canvas.height / 2 + 60, 32, 'red', 'center', true);
     }
 
     if (gameOver) {
@@ -211,14 +229,20 @@ function draw() {
 }
 
 function loop() {
-    if (!gameStarted || paused || gameOver) return;
-    update();
-    draw();
+    if (!gameStarted) {
+        draw();
+    } else if (paused) {
+        draw();
+    } else if (!gameDead) {
+        update();
+        draw();
+    } else {
+        draw();
+    }
     requestAnimationFrame(loop);
 }
 
 function handleGameOver() {
-    gameLoopActive = false;
     totalGames++;
     localStorage.setItem('flappyGamesPlayed', totalGames);
 
@@ -243,46 +267,62 @@ function drawStats() {
     drawText(`🔥 Best Streak: ${bestStreak}`, canvas.width / 2, 310, 36, 'white', 'center', true);
 }
 
-// === Controls ===
-document.addEventListener('keydown', e => {
-    if (e.code === 'Space') {
-        if (!gameStarted) {
-            gameStarted = true;
-            gameOver = false;
-            paused = false;
-            resetGame();
-            gameLoopActive = true;
-            loop();
-        } else if (gameOver) {
-            gameOver = false;
-            paused = false;
-            resetGame();
-            gameLoopActive = true;
-            loop();
-        } else if (!paused) {
-            birdV = jump;
-        }
-    }
-
-    if (e.code === 'KeyP' && gameStarted && !gameOver) {
-        paused = !paused;
-        if (!paused && gameLoopActive) {
-            loop();
-        } else {
-            draw();
-        }
-    }
-});
-
 function resetGame() {
     birdY = 250;
     birdV = 0;
     pipes = [];
     score = 0;
     frame = 0;
-    sunAngle = 0;
+    gameDead = false;
 }
 
+// === Controls ===
+document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space') {
+        if (!gameStarted) {
+            gameStarted = true;
+            gameOver = false;
+            paused = false;
+            resetGame();
+            if (typeof bgMusic !== 'undefined') {
+                bgMusic.currentTime = 0;
+                bgMusic.play();
+            }
+        } else if (gameOver && gameDead) {
+            gameOver = false;
+            paused = false;
+            resetGame();
+            if (typeof bgMusic !== 'undefined') {
+                bgMusic.currentTime = 0;
+                bgMusic.play();
+            }
+        } else if (!paused && !gameOver) {
+            birdV = jump;
+            if (typeof jumpSound !== 'undefined') {
+                jumpSound.currentTime = 0;
+                jumpSound.play();
+            }
+        } else if (paused) {
+            // unpause if space pressed
+            paused = false;
+            if (typeof bgMusic !== 'undefined') bgMusic.play();
+            draw();
+        }
+    } else if (e.code === 'KeyP') {
+        if (gameStarted && !gameOver) {
+            paused = !paused;
+            if (paused) {
+                if (typeof bgMusic !== 'undefined') bgMusic.pause();
+            } else {
+                if (typeof bgMusic !== 'undefined') bgMusic.play();
+            }
+            draw();
+        }
+    }
+});
+
+
+// === Cloud Drawing ===
 function drawCloud(x, y, type) {
     const gradient = ctx.createRadialGradient(x, y, 10, x, y, 50);
     gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
@@ -358,3 +398,6 @@ function drawCloud(x, y, type) {
 
     ctx.shadowBlur = 0;
 }
+
+// Start the loop for the first time so canvas updates
+loop();
